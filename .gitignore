@@ -1,13 +1,4 @@
-coverage.html
-coverage/*
-experiments/*
-pkg/*
-doc/*
-log/*
-tmp/*
-TAGS
-semantic.cache
-/www/output/
-local/*
-.ditz-config
-*.rbc
+.bundle/
+coverage.data
+coverage/
+smqueue-*.gem

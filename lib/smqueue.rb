@@ -24,16 +24,10 @@ module SMQueue
 
   # Mr Bones project skeleton boilerplate
   # :stopdoc:
-  VERSION = '0.3.0'
+  VERSION = '0.4.0-development'
   LIBPATH = ::File.expand_path(::File.dirname(__FILE__)) + ::File::SEPARATOR
   PATH = ::File.dirname(LIBPATH) + ::File::SEPARATOR
   # :startdoc:
-
-  # Returns the version string for the library.
-  #
-  def self.version
-    VERSION
-  end
 
   # Returns the library path for the module. If any arguments are given,
   # they will be joined to the end of the libray path using
