@@ -272,7 +272,7 @@ SMQueue.autoload :StderrAdapter, File.join(base_dir, "smqueue/adapters/stdio.rb"
   Dir[adapter_path].each do |file|
     begin
       basename = File.basename(file, File.extname(file))
-      const_name_prefix = Doodle::Utils.camel_case(basename)
+      const_name_prefix = basename.to_s.gsub(/\/(.?)/) { "::#{$1.upcase}" }.gsub(/(?:^|_)(.)/) { $1.upcase }
       # p [:file, file, basename, const_name_prefix]
       const_name = "#{const_name_prefix}Adapter"
       #p [:file, file, const_name]
