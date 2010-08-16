@@ -341,6 +341,8 @@ module RStomp
       begin
         @socket.close
       rescue Object => e
+        puts "ERROR: #{e.message}"
+        puts e.backtrace.join("\n")
       end
       @socket = nil
       @open = false
