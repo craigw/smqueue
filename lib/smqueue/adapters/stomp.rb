@@ -144,17 +144,20 @@ module SMQueue
 
     # connect to message broker
     def connect(*args, &block)
-      self.connection = RStomp::Connection.open(configuration.to_hash)
-      # If the connection has swapped hosts, then swap out primary and secondary
-      if connection.current_host != configuration.host
-        configuration.secondary_host = configuration.host
-        configuration.host = connection.current_host
-      end
+      self.connection ||= begin
+        connection = RStomp::Connection.open(configuration.to_hash)
+        # If the connection has swapped hosts, then swap out primary and secondary
+        if connection.current_host != configuration.host
+          configuration.secondary_host = configuration.host
+          configuration.host = connection.current_host
+        end
 
-      # If the connection has swapped ports, then swap out primary and secondary
-      if connection.current_port != configuration.port
-        configuration.secondary_port = configuration.port
-        configuration.port = connection.current_port
+        # If the connection has swapped ports, then swap out primary and secondary
+        if connection.current_port != configuration.port
+          configuration.secondary_port = configuration.port
+          configuration.port = connection.current_port
+        end
+        connection
       end
     end
 
@@ -347,8 +350,6 @@ module SMQueue
       rescue Exception => e
         SMQueue.dbg { [:smqueue, :exception, e].inspect }
         handle_error e, "Exception in SMQueue#put - #{e.message}", caller
-        #connection.disconnect
-      ensure
         connection.disconnect
       end
     end
