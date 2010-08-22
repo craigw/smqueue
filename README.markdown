@@ -27,17 +27,12 @@ Programming with SMQueue
     session = mq.connect
     channel = session.channel channel_name
 
-    # Get one message. The default ACK mode is Auto, here we illustrate
-    # setting this to a client (manual) ack.
-    message = channel.get :ack => Client.new # => [ headers = {}, "body" ]
-    # Do some work with the message and when done acknowledge it
-    channel.ack message
+    # Get one message.
+    message = channel.get # => [ headers = {}, "body" ]
 
     # To get messages until the Ruby VM dies do this:
-    channel.get :ack => Client.new do |message|
-      # headers, body = *message
-      # Do some work
-      channel.ack message
+    channel.get do |headers, body|
+      # ...
     end
 
     # Put a message onto the channel like this:

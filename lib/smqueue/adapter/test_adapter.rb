@@ -5,7 +5,6 @@ class SMQueue
         def initialize channel_name; end
         def get; end
         def put; end
-        def ack; end
         def close; end
       end
 

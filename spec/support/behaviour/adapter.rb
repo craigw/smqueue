@@ -18,10 +18,6 @@ shared_examples_for "an adapter instance" do
       channel.should respond_to(:put)
     end
 
-    it "returns something that can acknowledge messages" do
-      channel.should respond_to(:ack)
-    end
-
     it "returns something that can be closed" do
       channel.should respond_to(:close)
     end
