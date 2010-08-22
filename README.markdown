@@ -21,10 +21,11 @@ Programming with SMQueue
     # sysadmin on deployment. Maybe they're read from a configuration file
     # or similar, but that's outside the scope of this project.
     broker_uri = "activemq:stomp://username:password@mq.example.com:61613"
-    queue_name = "/queue/example.foo"
+    channel_name = "/queue/example.foo"
 
     mq = SMQueue.new broker_uri
-    channel = mq.channel queue_name
+    session = mq.connect
+    channel = session.channel channel_name
 
     # Get one message. The default ACK mode is Auto, here we illustrate
     # setting this to a client (manual) ack.
@@ -42,6 +43,8 @@ Programming with SMQueue
     # Put a message onto the channel like this:
     channel.put headers, body
 
+    # Disconnect when you're done
+    channel.disconnect
 
 Contributing
 ------------
