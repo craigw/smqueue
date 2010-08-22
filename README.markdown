@@ -24,8 +24,7 @@ Programming with SMQueue
     channel_name = "/queue/example.foo"
 
     mq = SMQueue.new broker_uri
-    session = mq.connect
-    channel = session.channel channel_name
+    channel = mq.channel channel_name
 
     # Get one message.
     message = channel.get # => [ headers = {}, "body" ]
@@ -38,8 +37,9 @@ Programming with SMQueue
     # Put a message onto the channel like this:
     channel.put headers, body
 
-    # Disconnect when you're done
-    channel.disconnect
+    # Close the channel when you're done
+    channel.close
+
 
 Contributing
 ------------
