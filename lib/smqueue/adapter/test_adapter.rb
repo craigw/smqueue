@@ -4,7 +4,7 @@ class SMQueue
       class TestChannel
         def initialize channel_name; end
         def get; end
-        def put; end
+        def put headers, body; end
         def close; end
       end
 
