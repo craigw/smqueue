@@ -5,11 +5,11 @@ class SMQueue
 
   def initialize uri = nil
     if uri
-      adapter_name, options = *uri.split(/:\/\//, 2)
-      adapter_class = adapter_name.dup
-      adapter_class[0] = adapter_class[0..0].upcase
-      adapter_class += 'Adapter'
-      @adapter = SMQueue::Adapter.const_get(adapter_class).new(options)
+      adapter_class_name, options = *uri.split(/:\/\//, 2)
+      adapter_class_name[0] = adapter_class_name[0..0].upcase
+      adapter_class_name += 'Adapter'
+      adapter_class = SMQueue::Adapter.const_get(adapter_class_name)
+      @adapter = adapter_class.new(options)
     end
   end
 
