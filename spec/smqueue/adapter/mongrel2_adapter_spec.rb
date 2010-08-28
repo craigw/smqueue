@@ -12,16 +12,36 @@ describe SMQueue::Adapter::Mongrel2Adapter do
     }
     it_should_behave_like "an adapter instance"
 
-    it "allows setting the protocol implementation" do
-      protocol = stub_everything('Other Protocol Implementation')
+    it "uses ZMQ::Context.new(1) as the default protocol implementation" do
+      default_protocol = stub_everything('Default Protocol')
+      module ZMQ; class Context; def initialize *args; end; end; end
+      ZMQ::Context.expects(:new).with(1).returns(default_protocol)
+            
+      m2 = SMQueue::Adapter::Mongrel2Adapter.new
+
       channel_class = SMQueue::Adapter::Mongrel2Adapter::Mongrel2RequestChannel
-      channel_class.expects(:new).once.with(:protocol => protocol)
-      m2 = SMQueue::Adapter::Mongrel2Adapter.new :protocol => protocol
+      channel_class.expects(:new).once.with(:protocol => default_protocol)
       m2.channel 'request'
 
       channel_class = SMQueue::Adapter::Mongrel2Adapter::Mongrel2ResponseChannel
-      channel_class.expects(:new).once.with(:protocol => protocol)
-      m2 = SMQueue::Adapter::Mongrel2Adapter.new :protocol => protocol
+      channel_class.expects(:new).once.with(:protocol => default_protocol)
+      m2.channel 'response'
+    end
+
+    it "allows setting the protocol implementation" do
+      default_protocol = stub_everything('Default Protocol')
+      module ZMQ; class Context; def initialize *args; end; end; end
+      ZMQ::Context.stubs(:new).returns(default_protocol)
+      other_protocol = stub_everything('Other Protocol')
+
+      channel_class = SMQueue::Adapter::Mongrel2Adapter::Mongrel2RequestChannel
+      channel_class.expects(:new).once.with(:protocol => other_protocol)
+      m2 = SMQueue::Adapter::Mongrel2Adapter.new :protocol => other_protocol
+      m2.channel 'request'
+
+      channel_class = SMQueue::Adapter::Mongrel2Adapter::Mongrel2ResponseChannel
+      channel_class.expects(:new).once.with(:protocol => other_protocol)
+      m2 = SMQueue::Adapter::Mongrel2Adapter.new :protocol => other_protocol
       m2.channel 'response'
     end
 
