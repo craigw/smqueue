@@ -59,6 +59,37 @@ describe SMQueue::Adapter::Mongrel2Adapter do
           @driver.upstream("tcp://foo:1234")
         end
       end
+
+      it "can provide publishing sockets" do
+        @driver.should respond_to(:publish)
+      end
+
+      describe "publish sockets" do
+        it "asks the context for a publish socket" do
+          ctx = ZMQ::Context.new(1)
+          @driver.stubs(:context).returns(ctx)
+          ctx.expects(:socket).with(ZMQ::PUB).once.returns(stub_everything('Socket'))
+          @driver.publish("tcp://foo:1234", '16594e60-951c-012d-a380-34159e1f5aec')
+        end
+
+        it "connects the publish socket to the requested address" do
+          ctx = ZMQ::Context.new(1)
+          @driver.stubs(:context).returns(ctx)
+          socket = stub_everything('Socket')
+          ctx.expects(:socket).with(ZMQ::PUB).once.returns(socket)
+          socket.expects(:connect).with("tcp://foo:1234").once
+          @driver.publish("tcp://foo:1234", '16594e60-951c-012d-a380-34159e1f5aec')
+        end
+
+        it "sets the sender id on the socket" do
+          ctx = ZMQ::Context.new(1)
+          @driver.stubs(:context).returns(ctx)
+          socket = stub_everything('Socket')
+          ctx.expects(:socket).with(ZMQ::PUB).once.returns(socket)
+          socket.expects(:setsockopt).with(ZMQ::IDENTITY, '16594e60-951c-012d-a380-34159e1f5aec').once
+          @driver.publish("tcp://foo:1234", '16594e60-951c-012d-a380-34159e1f5aec')
+        end
+      end
     end
 
     it "allows setting the driver implementation" do
@@ -160,6 +191,51 @@ describe SMQueue::Adapter::Mongrel2Adapter do
         channel_class = SMQueue::Adapter::Mongrel2Adapter::Mongrel2ResponseChannel
         instance = channel_class.new :driver => driver
         instance.driver.should be(driver)
+      end
+
+      describe "putting a message" do
+        before :each  do
+          @driver = stub_everything('Driver')
+          adapter_options = { :driver => @driver, :host => "test.host",
+                              :port => 1233, :id => "16594e60-951c-012d-a380-34159e1f5aec" }
+          @m2 = SMQueue::Adapter::Mongrel2Adapter.new adapter_options
+        end
+
+        it "asks the driver for an upstream socket to the specified host and port on the first message" do
+          @driver.expects(:publish).with("tcp://test.host:1233", "16594e60-951c-012d-a380-34159e1f5aec").once.returns(stub_everything('Publish Socket'))
+          response = @m2.channel 'response'
+          message = [ { 'sender_id' => "df7bb5b0-951e-012d-a381-34159e1f5aec", 'client_ids' => [1] }, "body" ]
+          response.put *message
+        end
+
+        it "does not request a connection for subsequent messages" do
+          @driver.expects(:publish).with("tcp://test.host:1233", "16594e60-951c-012d-a380-34159e1f5aec").once.returns(stub_everything('Publish Socket'))
+          response = @m2.channel 'response'
+          message = [ { 'sender_id' => "df7bb5b0-951e-012d-a381-34159e1f5aec", 'client_ids' => [1] }, "body" ]
+          2.times { response.put *message }
+        end
+
+        it "pushes messages onto the socket" do
+          headers = {
+            'sender_id' => 'f0e45140-94eb-012d-a37f-34159e1f5aec',
+            'client_ids' => [ 1, 2 ],
+            'headers' => {
+              'X-Test-Response' => true
+            }
+          }
+
+          socket = stub_everything('Publish Socket')
+          expected_message = "f0e45140-94eb-012d-a37f-34159e1f5aec 3:1 2, RESPONSE BODY"
+          socket.expects(:send_string).with(expected_message, 0).once
+          @driver.stubs(:publish).returns(socket)
+          response = @m2.channel 'response'
+          response.put headers, 'RESPONSE BODY'
+        end
+
+        after :each  do
+          @m2 = nil
+          @driver = nil
+        end
       end
 
       it "freaks out when you try to get a message" do

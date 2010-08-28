@@ -10,8 +10,15 @@ class SMQueue
         end
 
         def upstream uri
-          socket = context.socket(ZMQ::UPSTREAM)
+          socket = context.socket ZMQ::UPSTREAM
           socket.connect uri
+          socket
+        end
+
+        def publish uri, id
+          socket = context.socket ZMQ::PUB
+          socket.connect uri
+          socket.setsockopt ZMQ::IDENTITY, id
           socket
         end
 
@@ -35,11 +42,6 @@ class SMQueue
         def get; end
         def put headers, body; end
         def close; end
-
-        protected
-        def socket
-          @socket ||= @driver.upstream("tcp://#{@host}:#{@port}")
-        end
       end
 
       class Mongrel2RequestChannel < Mongrel2Channel
@@ -72,14 +74,34 @@ class SMQueue
           end
           JSON
         end
+
+        protected
+        def socket
+          @socket ||= @driver.upstream("tcp://#{@host}:#{@port}")
+        end
       end
 
       class Mongrel2ResponseChannel < Mongrel2Channel
+        def initialize options
+          super
+          @id = options[:id]
+        end
+
         def get
           raise "You can't get messages from the response channel"
         end
 
-        def put headers, body; end
+        def put headers, body
+          client_ids = headers['client_ids'].join(' ')
+          message = "%s %d:%s," % [ headers['sender_id'], client_ids.size, client_ids ]
+          message += ' ' + body
+          socket.send_string message, 0
+        end
+
+        protected
+        def socket
+          @socket ||= @driver.publish("tcp://#{@host}:#{@port}", @id)
+        end
       end
 
       def initialize options = {}
