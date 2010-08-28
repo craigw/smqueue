@@ -4,13 +4,13 @@ require 'spec/rake/verify_rcov'
 coverage_data = "coverage.data"
 
 Spec::Rake::SpecTask.new do |t|
-  t.ruby_opts = [ '-I lib', '-I spec' ]
+  t.ruby_opts = [ '-I spec' ]
   t.spec_opts = [
     "--colour",
     "--format", "progress",
     "--loadby", "mtime",
     "--reverse",
-    "--format", "html:coverage/index.html"
+    "--format", "html:coverage/specification.html"
   ]
   t.spec_files = FileList['spec/**/*_spec.rb']
   t.rcov = true
