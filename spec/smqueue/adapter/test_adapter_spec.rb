@@ -7,6 +7,7 @@ describe SMQueue::Adapter::TestAdapter do
 
   describe "instance" do
     let(:adapter_instance) { SMQueue::Adapter::TestAdapter.new }
+    let(:channel) { adapter_instance.channel "/queue/test" }
     it_should_behave_like "an adapter instance"
 
     it "allows altering the channel class" do
