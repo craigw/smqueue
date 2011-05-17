@@ -392,9 +392,9 @@ module RStomp
           line = s.gets
         end
         if line.nil?
-          # FIXME: this loses data - maybe retry here if connection returns nil?
-          raise NoDataError, "connection returned nil"
-          nil
+          puts "Socket returned nil" if $DEBUG
+          disconnect
+          retry
         else
           #logger.debug "got message data"
           Message.new do |m|
