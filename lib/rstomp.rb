@@ -215,14 +215,11 @@ module RStomp
             socket_set_keepalive(s)
 
             _transmit(s, "CONNECT", headers)
-            @connect = _receive(s)
+            @connect = _receive s
             @open = true
 
             # replay any subscriptions.
             @subscriptions.each { |k, v| _transmit(s, "SUBSCRIBE", v) }
-          rescue Interrupt => e
-            #p [:interrupt, e]
-            #          rescue Exception => e
           rescue RStompException, SystemCallError => e
             #p [:Exception, e]
             @failure = e
@@ -242,6 +239,13 @@ module RStomp
         end
         @socket = s
       end
+    end
+
+    def abandon_socket
+      puts "ABANDONING SOCKET"
+      @socket.close if !@socket.closed?
+      @socket = nil
+      @failure = "ABANDONED SOCKET"
     end
 
     def switch_host_and_port
@@ -300,20 +304,16 @@ module RStomp
       transmit "SUBSCRIBE", headers
 
       # Store the sub so that we can replay if we reconnect.
-      if @reliable
-        subscription_id = name if subscription_id.nil?
-        @subscriptions[subscription_id]=headers
-      end
+      subscription_id = name if subscription_id.nil?
+      @subscriptions[subscription_id]=headers
     end
 
     # Unsubscribe from a destination, must specify a name
     def unsubscribe(name, headers = {}, subscription_id = nil)
       headers[:destination] = name
       transmit "UNSUBSCRIBE", headers
-      if @reliable
-        subscription_id = name if subscription_id.nil?
-        @subscriptions.delete(subscription_id)
-      end
+      subscription_id = name if subscription_id.nil?
+      @subscriptions.delete(subscription_id)
     end
 
     # Send message to destination
@@ -369,13 +369,18 @@ module RStomp
         begin
           s = socket
           rv = _receive(s)
-          return rv
-          #        rescue Interrupt
-          #          raise
-        rescue RStompException, SystemCallError => e
-          @failure = e
-          handle_error ReceiveError, "receive failed: #{e.message}"
-          # TODO: maybe sleep here?
+          return rv unless rv.nil?
+        rescue => e
+          puts [ e.message, e.backtrace ].flatten.join("\n")
+
+          if e.kind_of?(Errno::ECONNRESET) || e.message =~ /reconnect time/
+            abandon_socket
+          elsif e.kind_of?(RStompException) || e.kind_of?(SystemCallError)
+            @failure = e
+            handle_error ReceiveError, "receive failed: #{e.message}"
+          else
+            raise
+          end
         end
       end
     end
@@ -383,53 +388,49 @@ module RStomp
     private
     def _receive( s )
       #logger.debug "_receive"
-      line = ' '
       @read_semaphore.synchronize do
         #logger.debug "inside semaphore"
         # skip blank lines
-        while line =~ /^\s*$/
+        while true
           #logger.debug "skipping blank line " + s.inspect
           line = s.gets
+          raise "reconnect time" if line.nil?
+          break unless line =~ /^\s*$/
         end
-        if line.nil?
-          puts "Socket returned nil" if $DEBUG
-          disconnect
-          retry
-        else
-          #logger.debug "got message data"
-          Message.new do |m|
-            m.command = line.chomp
-            m.headers = {}
-            until (line = s.gets.chomp) == ''
-              k = (line.strip[0, line.strip.index(':')]).strip
-              v = (line.strip[line.strip.index(':') + 1, line.strip.length]).strip
-              m.headers[k] = v
-            end
 
-            if m.headers['content-length']
-              m.body = s.read m.headers['content-length'].to_i
-              # expect an ASCII NUL (i.e. 0)
-              c = s.getc
-              handle_error InvalidContentLengthError, "Invalid content length received" unless c == 0
-            else
-              m.body = ''
-              until (c = s.getc) == 0
-                m.body << c.chr
-              end
-            end
-            if $DEBUG
-              logger.debug "Message #: #{m.headers['message-id']}"
-              logger.debug "  Command: #{m.command}"
-              logger.debug "  Headers:"
-              m.headers.sort.each do |key, value|
-                logger.debug "    #{key}: #{m.headers[key]}"
-              end
-              logger.debug "  Body: [#{m.body}]\n"
-            end
-            m
-            #c = s.getc
-            #handle_error InvalidFrameTerminationError, "Invalid frame termination received" unless c == 10
+        #logger.debug "got message data"
+        Message.new do |m|
+          m.command = line.chomp
+          m.headers = {}
+          until (line = s.gets.chomp) == ''
+            k = (line.strip[0, line.strip.index(':')]).strip
+            v = (line.strip[line.strip.index(':') + 1, line.strip.length]).strip
+            m.headers[k] = v
           end
+
+          if m.headers['content-length']
+            m.body = s.read m.headers['content-length'].to_i
+            # expect an ASCII NUL (i.e. 0)
+            c = s.getc
+            handle_error InvalidContentLengthError, "Invalid content length received" unless c == 0
+          else
+            m.body = ''
+            until (c = s.getc) == 0
+              m.body << c.chr
+            end
+          end
+          if $DEBUG
+            logger.debug "Message #: #{m.headers['message-id']}"
+            logger.debug "  Command: #{m.command}"
+            logger.debug "  Headers:"
+            m.headers.sort.each do |key, value|
+              logger.debug "    #{key}: #{m.headers[key]}"
+            end
+            logger.debug "  Body: [#{m.body}]\n"
+          end
+          m
+          #c = s.getc
+          #handle_error InvalidFrameTerminationError, "Invalid frame termination received" unless c == 10
         end
       end
     end
@@ -443,7 +444,7 @@ module RStomp
       if !(exception_class <= RStompException)
         force_raise = true
       end
-      raise exception_class, error_message if force_raise
+      raise if force_raise
     end
 
     def transmit(command, headers = {}, body = '')
@@ -453,13 +454,18 @@ module RStomp
         begin
           _transmit(socket, command, headers, body)
           return
-          #        rescue Interrupt
-          #          raise
-        rescue RStompException, SystemCallError => e
-          @failure = e
-          handle_error TransmitError, "transmit '#{command}' failed: #{e.message} (#{body})"
+        rescue => e
+          puts [ e.message, e.backtrace ].flatten.join("\n")
+
+          if e.kind_of?(Errno::ECONNRESET) || e.message =~ /reconnect time/
+            abandon_socket
+          elsif e.kind_of?(RStompException) || e.kind_of?(SystemCallError)
+            @failure = e
+            handle_error TransmitError, "transmit '#{command}' failed: #{e.message} (#{body})"
+          else
+            raise
+          end
         end
-        # TODO: sleep here?
       end
     end
 

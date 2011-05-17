@@ -13,7 +13,6 @@ Gem::Specification.new do |s|
   s.default_executable = %q{mqp}
   s.description = %q{Implements a simple protocol for using message queues, with adapters for STOMP (ActiveMQ), AMQP, XMPP PubSub, HTTP, Spread and stdio (for testing).}
   s.email = %q{seanohalpin@gmail.com}
-  s.executables = ["mqp"]
   s.extra_rdoc_files = [
     "History.txt",
      "Manifest.txt",

@@ -324,10 +324,12 @@ module SMQueue
         handle_error e, "Exception in SMQueue#get: #{e.message}", caller
       ensure
         SMQueue.dbg { [:smqueue, :get, :ensure].inspect }
-        SMQueue.dbg { [:smqueue, :unsubscribe, destination, subscription_headers].inspect }
-        connection.unsubscribe destination, subscription_headers
-        SMQueue.dbg { [:smqueue, :disconnect].inspect }
-        connection.disconnect
+        if connection.closed?
+          SMQueue.dbg { [:smqueue, :unsubscribe, destination, subscription_headers].inspect }
+          connection.unsubscribe destination, subscription_headers
+          SMQueue.dbg { [:smqueue, :disconnect].inspect }
+          connection.disconnect
+        end
       end
       SMQueue.dbg { [:smqueue, :get, :return].inspect }
       message
