@@ -442,7 +442,7 @@ module RStomp
       if !(exception_class <= RStompException)
         force_raise = true
       end
-      raise if force_raise
+      raise exception_class, error_message if force_raise
     end
 
     def transmit(command, headers = {}, body = '')
