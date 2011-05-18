@@ -242,7 +242,7 @@ module RStomp
     end
 
     def abandon_socket
-      puts "ABANDONING SOCKET"
+      logger.debug "ABANDONING SOCKET"
       @socket.close if !@socket.closed?
       @socket = nil
       @failure = "ABANDONED SOCKET"
@@ -340,9 +340,8 @@ module RStomp
       discard_all_until_eof
       begin
         @socket.close
-      rescue Object => e
-        puts "ERROR: #{e.message}"
-        puts e.backtrace.join("\n")
+      rescue => e
+        [ e.message, e.backtrace ].flatten.each { |l| logger.error l }
       end
       @socket = nil
       @open = false
@@ -371,8 +370,7 @@ module RStomp
           rv = _receive(s)
           return rv unless rv.nil?
         rescue => e
-          puts [ e.message, e.backtrace ].flatten.join("\n")
-
+          [ e.message, e.backtrace ].flatten.each { |l| logger.error l }
           if e.kind_of?(Errno::ECONNRESET) || e.message =~ /reconnect time/
             abandon_socket
           elsif e.kind_of?(RStompException) || e.kind_of?(SystemCallError)
@@ -455,7 +453,7 @@ module RStomp
           _transmit(socket, command, headers, body)
           return
         rescue => e
-          puts [ e.message, e.backtrace ].flatten.join("\n")
+          [ e.message, e.backtrace ].flatten.each { |l| logger.error l }
 
           if e.kind_of?(Errno::ECONNRESET) || e.message =~ /reconnect time/
             abandon_socket
